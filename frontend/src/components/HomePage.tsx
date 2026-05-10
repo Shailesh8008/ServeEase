@@ -1,28 +1,14 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import heroImage from "../assets/hero.png";
-
-const serviceCategories = [
-  {
-    title: "Home Cleaning",
-    description: "Deep cleaning, kitchen care, sofa shampoo, and move-in help.",
-    accent: "bg-teal-50 text-teal-700 border-teal-100",
-  },
-  {
-    title: "Repairs",
-    description: "Electricians, plumbers, appliance repair, and quick fixes.",
-    accent: "bg-amber-50 text-amber-700 border-amber-100",
-  },
-  {
-    title: "Beauty & Wellness",
-    description: "Salon, grooming, massage, and at-home wellness services.",
-    accent: "bg-rose-50 text-rose-700 border-rose-100",
-  },
-  {
-    title: "Travel Support",
-    description: "Airport pickup, local assistance, errands, and trip services.",
-    accent: "bg-sky-50 text-sky-700 border-sky-100",
-  },
-];
+import { useAuth } from "../context/AuthContext";
+import { serviceCategories } from "../lib/serviceCategories";
+import {
+  formatServicePrice,
+  getPublicServices,
+  getServiceDiscountPercent,
+  type PublicService,
+} from "../lib/servicesApi";
 
 const steps = [
   "Choose a service",
@@ -31,7 +17,49 @@ const steps = [
   "Track and confirm orders",
 ];
 
+const homeSections = [
+  {
+    title: "Popular repairing services",
+    description: "Quick help for appliances, fixtures, wiring, and everyday breakdowns.",
+    categories: ["Repairs", "Electrical"],
+  },
+  {
+    title: "Plumbing services",
+    description: "Book trusted plumbers for leaks, blockages, installations, and repairs.",
+    categories: ["Plumbing"],
+  },
+  {
+    title: "Popular hotels",
+    description: "Find stays for business trips, family visits, and weekend plans.",
+    categories: ["Hotels"],
+  },
+];
+
+const getCategoryImage = (category: string) =>
+  serviceCategories.find((item) => item.label === category)?.image ||
+  serviceCategories.find((item) => item.label === "Others")?.image ||
+  "";
+
 function HomePage() {
+  const { user } = useAuth();
+  const showVendorCard = user?.role !== "customer";
+  const [services, setServices] = useState<PublicService[]>([]);
+
+  useEffect(() => {
+    getPublicServices()
+      .then(setServices)
+      .catch(() => setServices([]));
+  }, []);
+
+  const servicesBySection = useMemo(() => {
+    return homeSections.map((section) => ({
+      ...section,
+      services: services
+        .filter((service) => section.categories.includes(service.category))
+        .slice(0, 3),
+    }));
+  }, [services]);
+
   return (
     <main className="flex-1 bg-white">
       <section className="border-b border-slate-200 bg-slate-50">
@@ -139,10 +167,10 @@ function HomePage() {
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="mb-2 text-sm font-bold uppercase text-teal-700">
-              Popular services
+              Popular picks
             </p>
             <h2 className="text-3xl font-bold text-slate-950">
-              Book what you need in minutes
+             
             </h2>
           </div>
           <Link
@@ -153,23 +181,103 @@ function HomePage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {serviceCategories.map((category) => (
+        <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {serviceCategories.slice(0, 4).map((category) => (
             <article
-              key={category.title}
-              className={`rounded-lg border p-5 ${category.accent}`}
+              key={category.label}
+              className={`overflow-hidden rounded-lg border bg-white ${category.accent}`}
             >
-              <h3 className="text-lg font-bold">{category.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                {category.description}
-              </p>
+              <img
+                src={category.image}
+                alt={category.label}
+                className="h-36 w-full object-cover"
+              />
+              <div className="p-5">
+                <h3 className="text-lg font-bold">{category.label}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  {category.description}
+                </p>
+              </div>
             </article>
+          ))}
+        </div>
+
+        <div className="grid gap-10">
+          {servicesBySection.map((section) => (
+            <div key={section.title}>
+              <div className="mb-4">
+                <h3 className="text-2xl font-bold text-slate-950">
+                  {section.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {section.description}
+                </p>
+              </div>
+              {section.services.length === 0 ? (
+                <p className="rounded-md border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                  No live listings yet in this section.
+                </p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-3">
+                {section.services.map((service) => {
+                  const discount = getServiceDiscountPercent(
+                    service.marginPrice,
+                    service.sellingPrice,
+                  );
+                  return (
+                  <article
+                    key={service.id}
+                    className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  >
+                    <img
+                      src={service.poster || getCategoryImage(service.category)}
+                      alt={service.sname}
+                      className="h-40 w-full object-cover"
+                    />
+                    <div className="p-5">
+                      <h4 className="text-lg font-bold text-slate-950">
+                        {service.sname}
+                      </h4>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {service.description || "Service details coming soon."}
+                      </p>
+                      {service.city && (
+                        <span className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                          {service.city}
+                        </span>
+                      )}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {discount > 0 && (
+                          <span className="text-sm text-slate-400 line-through">
+                            {formatServicePrice(service.marginPrice)}
+                          </span>
+                        )}
+                        <span className="font-bold text-slate-950">
+                          {formatServicePrice(service.sellingPrice)}
+                        </span>
+                        {discount > 0 && (
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                            {discount}% off
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                  );
+                })}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </section>
 
       <section className="bg-slate-950 text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:px-8">
+        <div
+          className={`mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:px-8 ${
+            showVendorCard ? "lg:grid-cols-2" : ""
+          }`}
+        >
           <div>
             <p className="mb-2 text-sm font-bold uppercase text-teal-300">
               For customers
@@ -192,32 +300,34 @@ function HomePage() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-white p-6 text-slate-900">
-            <p className="mb-2 text-sm font-bold uppercase text-amber-700">
-              For vendors
-            </p>
-            <h2 className="text-3xl font-bold text-slate-950">
-              Sell services and confirm orders from one dashboard.
-            </h2>
-            <p className="mt-4 leading-7 text-slate-600">
-              Vendors can register, publish service listings, receive customer
-              bookings, update availability, and confirm completed orders.
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <Link
-                to="/vendor/register"
-                className="inline-flex min-h-12 items-center justify-center rounded-md bg-amber-500 px-4 font-bold text-slate-950 transition hover:bg-amber-400"
-              >
-                Become a vendor
-              </Link>
-              <Link
-                to="/vendor/login"
-                className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 px-4 font-bold text-slate-800 transition hover:border-teal-600 hover:text-teal-700"
-              >
-                Vendor login
-              </Link>
+          {showVendorCard && (
+            <div className="rounded-lg bg-white p-6 text-slate-900">
+              <p className="mb-2 text-sm font-bold uppercase text-amber-700">
+                For vendors
+              </p>
+              <h2 className="text-3xl font-bold text-slate-950">
+                Sell services and confirm orders from one dashboard.
+              </h2>
+              <p className="mt-4 leading-7 text-slate-600">
+                Vendors can register, publish service listings, receive customer
+                bookings, update availability, and confirm completed orders.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <Link
+                  to="/vendor/register"
+                  className="inline-flex min-h-12 items-center justify-center rounded-md bg-amber-500 px-4 font-bold text-slate-950 transition hover:bg-amber-400"
+                >
+                  Become a vendor
+                </Link>
+                <Link
+                  to="/vendor/login"
+                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 px-4 font-bold text-slate-800 transition hover:border-teal-600 hover:text-teal-700"
+                >
+                  Vendor login
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
     </main>

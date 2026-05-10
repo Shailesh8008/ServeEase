@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
@@ -21,6 +21,8 @@ function AuthPage({
   const [authPanel, setAuthPanel] = useState<AuthPanel>(initialPanel);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -29,6 +31,16 @@ function AuthPage({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
+
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timerId = setTimeout(
+        () => setResendCountdown(resendCountdown - 1),
+        1000,
+      );
+      return () => clearTimeout(timerId);
+    }
+  }, [resendCountdown]);
 
   const isVendor = accountType === "vendor";
   const authHomePath = isVendor ? "/vendor/login" : "/login";
@@ -140,6 +152,7 @@ function AuthPage({
       );
       setAuthPanel("login");
       setIsOtpSent(true);
+      setResendCountdown(30);
       setFullName("");
       setBusinessName("");
       setServiceCategory("");
@@ -152,18 +165,22 @@ function AuthPage({
     }
   };
 
-  const sendOtpCode = async () => {
+  const sendOtpCode = async (isResend = false) => {
     try {
+      if (isResend) setIsResending(true);
       await postBackendAuth({
         action: "login",
         email,
       });
       setIsOtpSent(true);
+      setResendCountdown(30);
       toast.success("OTP sent to your email");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to send OTP",
       );
+    } finally {
+      if (isResend) setIsResending(false);
     }
   };
 
@@ -175,11 +192,33 @@ function AuthPage({
         otpCode,
       });
       if (data && typeof data === "object" && "user" in data) {
-        login(
-          (data as { user: { id: string; email: string; role: string } }).user,
-        );
+        const user = (
+          data as {
+            user: {
+              id: string;
+              email: string;
+              role: string;
+              name?: string;
+              fullName?: string;
+            };
+          }
+        ).user;
+
+        const normalizedRole = user.role?.toLowerCase() ?? "";
+        const expectedRole = isVendor ? "vendor" : "customer";
+        if (normalizedRole !== expectedRole) {
+          toast.error(
+            `This email is registered as a ${normalizedRole}. Please use the ${normalizedRole} login page.`,
+          );
+          navigate(normalizedRole === "vendor" ? "/vendor/login" : "/login");
+          return;
+        }
+
+        login({ ...user, role: normalizedRole });
       }
-      toast.success("Welcome back to ServiceEase");
+      toast.success(
+        `Welcome back to ${isVendor ? "ServiceEase Vendors" : "ServiceEase"}!`,
+      );
       navigate("/");
     } catch (error) {
       toast.error(
@@ -192,6 +231,7 @@ function AuthPage({
     setAuthPanel(panel);
     setOtpCode("");
     setIsOtpSent(false);
+    setResendCountdown(0);
   };
 
   return (
@@ -419,23 +459,18 @@ function AuthPage({
           {authPanel === "login" && isOtpSent && (
             <button
               type="button"
-              onClick={sendOtpCode}
-              disabled={isLoading}
+              onClick={() => sendOtpCode(true)}
+              disabled={isLoading || isResending || resendCountdown > 0}
               className="min-h-11 rounded-md border border-slate-300 px-4 text-sm font-bold text-slate-700 transition hover:border-teal-600 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Resend OTP
+              {isResending
+                ? "Sending..."
+                : resendCountdown > 0
+                  ? `Resend OTP in ${resendCountdown}s`
+                  : "Resend OTP"}
             </button>
           )}
         </form>
-        <p className="mt-5 text-center text-sm text-slate-600">
-          {isVendor ? "Looking for customer access?" : "Want to sell services?"}{" "}
-          <Link
-            to={isVendor ? "/login" : "/vendor/login"}
-            className="font-bold text-teal-700"
-          >
-            {isVendor ? "Customer login" : "Vendor login"}
-          </Link>
-        </p>
       </section>
     </main>
   );

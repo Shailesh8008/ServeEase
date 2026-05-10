@@ -1,7 +1,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -10,10 +9,13 @@ type AuthUser = {
   id: string;
   email: string;
   role: string;
+  name?: string;
+  fullName?: string;
 };
 
 type AuthContextType = {
   user: AuthUser | null;
+  isAuthReady: boolean;
   login: (user: AuthUser) => void;
   logout: () => void;
 };
@@ -21,23 +23,29 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY = "serviceease_auth_user";
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+const getStoredUser = () => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return null;
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored) as AuthUser);
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-  }, []);
+  try {
+    return JSON.parse(stored) as AuthUser;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+};
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [isAuthReady] = useState(true);
 
   const login = (userData: AuthUser) => {
-    setUser(userData);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+    const normalizedUser = {
+      ...userData,
+      role: userData.role?.toLowerCase() ?? "",
+    };
+    setUser(normalizedUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedUser));
   };
 
   const logout = () => {
@@ -46,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthReady, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
