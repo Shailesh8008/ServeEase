@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import heroImage from "../assets/hero.png";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import technicianImage from "../assets/home-image.png";
 import { useAuth } from "../context/AuthContext";
+import { majorCities } from "../lib/cities";
 import { serviceCategories } from "../lib/serviceCategories";
 import {
   formatServicePrice,
@@ -20,18 +21,24 @@ const steps = [
 const homeSections = [
   {
     title: "Popular repairing services",
-    description: "Quick help for appliances, fixtures, wiring, and everyday breakdowns.",
+    description:
+      "Quick help for appliances, fixtures, wiring, and everyday breakdowns.",
     categories: ["Repairs", "Electrical"],
+    href: "/services",
   },
   {
     title: "Plumbing services",
-    description: "Book trusted plumbers for leaks, blockages, installations, and repairs.",
+    description:
+      "Book trusted plumbers for leaks, blockages, installations, and repairs.",
     categories: ["Plumbing"],
+    href: "/services",
   },
   {
     title: "Popular hotels",
-    description: "Find stays for business trips, family visits, and weekend plans.",
+    description:
+      "Find stays for business trips, family visits, and weekend plans.",
     categories: ["Hotels"],
+    href: "/hotels",
   },
 ];
 
@@ -42,13 +49,32 @@ const getCategoryImage = (category: string) =>
 
 function HomePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const showVendorCard = user?.role !== "customer";
   const [services, setServices] = useState<PublicService[]>([]);
+  const [homeSearch, setHomeSearch] = useState("");
+  const [homeCity, setHomeCity] = useState("");
+  const [isCityOpen, setIsCityOpen] = useState(false);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getPublicServices()
       .then(setServices)
       .catch(() => setServices([]));
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        cityDropdownRef.current &&
+        !cityDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsCityOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const servicesBySection = useMemo(() => {
@@ -59,6 +85,16 @@ function HomePage() {
         .slice(0, 3),
     }));
   }, [services]);
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const params = new URLSearchParams();
+    if (homeSearch.trim()) params.set("search", homeSearch.trim());
+    if (homeCity) params.set("city", homeCity);
+
+    navigate(`/services${params.toString() ? `?${params.toString()}` : ""}`);
+  };
 
   return (
     <main className="flex-1 bg-white">
@@ -78,25 +114,81 @@ function HomePage() {
               confirmations.
             </p>
 
-            <form className="mt-8 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/70 sm:grid-cols-[1fr_0.8fr_auto]">
+            <form
+              className="mt-8 grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-lg shadow-slate-200/70 sm:grid-cols-[1fr_0.8fr_auto]"
+              onSubmit={handleSearchSubmit}
+            >
               <label className="sr-only" htmlFor="service">
                 Search service
               </label>
               <input
                 id="service"
                 type="search"
+                value={homeSearch}
+                onChange={(event) => setHomeSearch(event.target.value)}
                 placeholder="Search cleaning, plumber, salon..."
                 className="min-h-12 rounded-md border border-slate-200 px-4 text-slate-950 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               />
               <label className="sr-only" htmlFor="location">
                 Location
               </label>
-              <input
-                id="location"
-                type="text"
-                placeholder="Your city"
-                className="min-h-12 rounded-md border border-slate-200 px-4 text-slate-950 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-              />
+              <div ref={cityDropdownRef} className="relative">
+                <button
+                  id="location"
+                  type="button"
+                  onClick={() => setIsCityOpen((open) => !open)}
+                  className="flex min-h-12 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-4 text-left text-slate-950 outline-none transition hover:border-teal-600 focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  aria-haspopup="listbox"
+                  aria-expanded={isCityOpen}
+                >
+                  <span
+                    className={homeCity ? "text-slate-950" : "text-slate-400"}
+                  >
+                    {homeCity || "Your city"}
+                  </span>
+                  <span className="text-slate-400">v</span>
+                </button>
+                {isCityOpen && (
+                  <div
+                    className="absolute left-0 right-0 top-full z-20 mt-2 max-h-72 overflow-auto rounded-md border border-slate-200 bg-white shadow-xl"
+                    role="listbox"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHomeCity("");
+                        setIsCityOpen(false);
+                      }}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      role="option"
+                      aria-selected={homeCity === ""}
+                    >
+                      <span>Your city</span>
+                      {!homeCity ? (
+                        <span className="text-teal-600">Selected</span>
+                      ) : null}
+                    </button>
+                    {majorCities.map((city) => (
+                      <button
+                        key={city}
+                        type="button"
+                        onClick={() => {
+                          setHomeCity(city);
+                          setIsCityOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                        role="option"
+                        aria-selected={homeCity === city}
+                      >
+                        <span>{city}</span>
+                        {homeCity === city ? (
+                          <span className="text-teal-600">Selected</span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 className="min-h-12 rounded-md bg-teal-600 px-6 font-bold text-white transition hover:bg-teal-700"
@@ -110,53 +202,28 @@ function HomePage() {
                 to="/signup"
                 className="rounded-md bg-teal-600 px-4 py-2 text-white transition hover:bg-teal-700"
               >
-                Create customer account
+                Create an Account
               </Link>
               <span className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                Verified vendors
+                Verified Vendors
               </span>
               <span className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                Easy booking
+                Hassle-free Experience
               </span>
               <span className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                Order confirmation
+                Fast Services
               </span>
             </div>
           </div>
 
           <div className="relative">
-            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80">
-              <div className="grid place-items-center rounded-lg bg-slate-950 px-6 py-10">
+            <div className="grid min-h-[380px] place-items-center rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80">
+              <div className="grid w-full place-items-center rounded-lg bg-slate-50 ">
                 <img
-                  src={heroImage}
-                  alt="ServiceEase booking platform preview"
-                  className="h-48 w-48 object-contain"
+                  src={technicianImage}
+                  alt="Service technician ready for work"
+                  className="h-96 w-full object-contain"
                 />
-              </div>
-              <div className="mt-5 grid gap-3">
-                <div className="flex items-center justify-between rounded-md border border-slate-200 p-4">
-                  <div>
-                    <p className="font-bold text-slate-950">Kitchen cleaning</p>
-                    <p className="text-sm text-slate-500">Today, 4:00 PM</p>
-                  </div>
-                  <span className="rounded-md bg-teal-50 px-3 py-1 text-sm font-bold text-teal-700">
-                    Confirmed
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="rounded-md bg-slate-50 p-3">
-                    <p className="text-xl font-bold text-slate-950">4.8</p>
-                    <p className="text-xs text-slate-500">Rating</p>
-                  </div>
-                  <div className="rounded-md bg-slate-50 p-3">
-                    <p className="text-xl font-bold text-slate-950">120+</p>
-                    <p className="text-xs text-slate-500">Vendors</p>
-                  </div>
-                  <div className="rounded-md bg-slate-50 p-3">
-                    <p className="text-xl font-bold text-slate-950">24h</p>
-                    <p className="text-xs text-slate-500">Support</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -169,9 +236,7 @@ function HomePage() {
             <p className="mb-2 text-sm font-bold uppercase text-teal-700">
               Popular picks
             </p>
-            <h2 className="text-3xl font-bold text-slate-950">
-             
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-950"></h2>
           </div>
           <Link
             to="/services"
@@ -185,12 +250,12 @@ function HomePage() {
           {serviceCategories.slice(0, 4).map((category) => (
             <article
               key={category.label}
-              className={`overflow-hidden rounded-lg border bg-white ${category.accent}`}
+              className={`overflow-hidden group duration-500 hover:-translate-y-1 rounded-lg border bg-white ${category.accent}`}
             >
               <img
                 src={category.image}
                 alt={category.label}
-                className="h-36 w-full object-cover"
+                className="h-36 w-full object-cover transition duration-500 group-hover:scale-105"
               />
               <div className="p-5">
                 <h3 className="text-lg font-bold">{category.label}</h3>
@@ -206,9 +271,17 @@ function HomePage() {
           {servicesBySection.map((section) => (
             <div key={section.title}>
               <div className="mb-4">
-                <h3 className="text-2xl font-bold text-slate-950">
-                  {section.title}
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-2xl font-bold text-slate-950">
+                    {section.title}
+                  </h3>
+                  <Link
+                    to={section.href}
+                    className="text-sm font-bold text-teal-700 transition hover:text-teal-800"
+                  >
+                    View all
+                  </Link>
+                </div>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {section.description}
                 </p>
@@ -219,52 +292,55 @@ function HomePage() {
                 </p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-3">
-                {section.services.map((service) => {
-                  const discount = getServiceDiscountPercent(
-                    service.marginPrice,
-                    service.sellingPrice,
-                  );
-                  return (
-                  <article
-                    key={service.id}
-                    className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-                  >
-                    <img
-                      src={service.poster || getCategoryImage(service.category)}
-                      alt={service.sname}
-                      className="h-40 w-full object-cover"
-                    />
-                    <div className="p-5">
-                      <h4 className="text-lg font-bold text-slate-950">
-                        {service.sname}
-                      </h4>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        {service.description || "Service details coming soon."}
-                      </p>
-                      {service.city && (
-                        <span className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                          {service.city}
-                        </span>
-                      )}
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        {discount > 0 && (
-                          <span className="text-sm text-slate-400 line-through">
-                            {formatServicePrice(service.marginPrice)}
-                          </span>
-                        )}
-                        <span className="font-bold text-slate-950">
-                          {formatServicePrice(service.sellingPrice)}
-                        </span>
-                        {discount > 0 && (
-                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                            {discount}% off
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                  );
-                })}
+                  {section.services.map((service) => {
+                    const discount = getServiceDiscountPercent(
+                      service.marginPrice,
+                      service.sellingPrice,
+                    );
+                    return (
+                      <article
+                        key={service.id}
+                        className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <img
+                          src={
+                            service.poster || getCategoryImage(service.category)
+                          }
+                          alt={service.sname}
+                          className="h-40 w-full object-cover"
+                        />
+                        <div className="p-5">
+                          <h4 className="text-lg font-bold text-slate-950">
+                            {service.sname}
+                          </h4>
+                          <p className="mt-3 text-sm leading-6 text-slate-600">
+                            {service.description ||
+                              "Service details coming soon."}
+                          </p>
+                          {service.city && (
+                            <span className="mt-3 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                              {service.city}
+                            </span>
+                          )}
+                          <div className="mt-4 flex flex-wrap items-center gap-2">
+                            {discount > 0 && (
+                              <span className="text-sm text-slate-400 line-through">
+                                {formatServicePrice(service.marginPrice)}
+                              </span>
+                            )}
+                            <span className="font-bold text-slate-950">
+                              {formatServicePrice(service.sellingPrice)}
+                            </span>
+                            {discount > 0 && (
+                              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                                {discount}% off
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </div>

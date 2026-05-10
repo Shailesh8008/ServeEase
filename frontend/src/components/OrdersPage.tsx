@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, PackageCheck, XCircle } from "lucide-react";
 import { vendorApi, type VendorOrder } from "../lib/vendorApi";
 
 const formatCurrency = (value: number) =>
@@ -21,6 +21,9 @@ const OrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<
+    VendorOrder["status"] | null
+  >(null);
 
   const loadOrders = async () => {
     try {
@@ -41,14 +44,24 @@ const OrdersPage = () => {
     () => ({
       booked: orders.filter((order) => order.status === "Booked").length,
       confirmed: orders.filter((order) => order.status === "Confirmed").length,
+      delivered: orders.filter((order) => order.status === "Delivered").length,
       cancelled: orders.filter((order) => order.status === "Cancelled").length,
     }),
     [orders],
   );
 
+  const filteredOrders = useMemo(() => {
+    if (!activeStatusFilter) return orders;
+    return orders.filter((order) => order.status === activeStatusFilter);
+  }, [activeStatusFilter, orders]);
+
+  const toggleStatusFilter = (status: VendorOrder["status"]) => {
+    setActiveStatusFilter((current) => (current === status ? null : status));
+  };
+
   const handleOrderStatus = async (
     orderId: string,
-    status: "Confirmed" | "Cancelled",
+    status: "Confirmed" | "Delivered" | "Cancelled",
   ) => {
     try {
       setUpdatingOrderId(orderId);
@@ -83,25 +96,63 @@ const OrdersPage = () => {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter("Booked")}
+          className={`rounded-md border p-5 text-left shadow-sm transition ${
+            activeStatusFilter === "Booked"
+              ? "border-amber-300 bg-amber-50 ring-2 ring-amber-100"
+              : "border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/40"
+          }`}
+        >
           <p className="text-sm font-medium text-slate-600">Pending</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {counts.booked}
           </p>
-        </div>
-        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter("Confirmed")}
+          className={`rounded-md border p-5 text-left shadow-sm transition ${
+            activeStatusFilter === "Confirmed"
+              ? "border-blue-300 bg-blue-50 ring-2 ring-blue-100"
+              : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/40"
+          }`}
+        >
           <p className="text-sm font-medium text-slate-600">Confirmed</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {counts.confirmed}
           </p>
-        </div>
-        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter("Delivered")}
+          className={`rounded-md border p-5 text-left shadow-sm transition ${
+            activeStatusFilter === "Delivered"
+              ? "border-green-300 bg-green-50 ring-2 ring-green-100"
+              : "border-slate-200 bg-white hover:border-green-200 hover:bg-green-50/40"
+          }`}
+        >
+          <p className="text-sm font-medium text-slate-600">Delivered</p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">
+            {counts.delivered}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleStatusFilter("Cancelled")}
+          className={`rounded-md border p-5 text-left shadow-sm transition ${
+            activeStatusFilter === "Cancelled"
+              ? "border-rose-300 bg-rose-50 ring-2 ring-rose-100"
+              : "border-slate-200 bg-white hover:border-rose-200 hover:bg-rose-50/40"
+          }`}
+        >
           <p className="text-sm font-medium text-slate-600">Cancelled</p>
           <p className="mt-2 text-2xl font-bold text-slate-950">
             {counts.cancelled}
           </p>
-        </div>
+        </button>
       </div>
 
       <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
@@ -113,9 +164,13 @@ const OrdersPage = () => {
           <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">
             No orders yet.
           </p>
+        ) : filteredOrders.length === 0 ? (
+          <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">
+            No {activeStatusFilter?.toLowerCase()} orders.
+          </p>
         ) : (
           <div className="grid gap-4">
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <article
                 key={order.id}
                 className="grid gap-4 rounded-md border border-slate-200 p-4 lg:grid-cols-[1fr_auto]"
@@ -163,7 +218,8 @@ const OrdersPage = () => {
                     disabled={
                       updatingOrderId === order.id ||
                       order.status === "Confirmed" ||
-                      order.status === "Delivered"
+                      order.status === "Delivered" ||
+                      order.status === "Cancelled"
                     }
                     className="inline-flex min-h-9 items-center gap-2 rounded-md bg-teal-600 px-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -173,6 +229,23 @@ const OrdersPage = () => {
                       <CheckCircle2 className="h-4 w-4" />
                     )}
                     Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOrderStatus(order.id, "Delivered")}
+                    disabled={
+                      updatingOrderId === order.id ||
+                      order.status === "Delivered" ||
+                      order.status === "Cancelled"
+                    }
+                    className="inline-flex min-h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updatingOrderId === order.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PackageCheck className="h-4 w-4" />
+                    )}
+                    Delivered
                   </button>
                   <button
                     type="button"

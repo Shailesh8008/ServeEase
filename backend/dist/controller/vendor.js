@@ -240,11 +240,11 @@ const updateOrderStatus = async (req, res) => {
     }
     const { orderId } = req.params;
     const { status } = req.body;
-    const allowedStatuses = ["Confirmed", "Cancelled"];
+    const allowedStatuses = ["Confirmed", "Delivered", "Cancelled"];
     if (!allowedStatuses.includes(status)) {
         return res.status(400).json({
             success: false,
-            error: "Order can only be confirmed or cancelled from this page",
+            error: "Order can only be confirmed, delivered, or cancelled from this page",
         });
     }
     try {
@@ -255,6 +255,12 @@ const updateOrderStatus = async (req, res) => {
         const service = order?.serviceId;
         if (!order || service?.vendorId?.toString() !== vendorId) {
             return res.status(404).json({ success: false, error: "Order not found" });
+        }
+        if (order.status === "Cancelled") {
+            return res.status(400).json({
+                success: false,
+                error: "Cancelled orders cannot be updated",
+            });
         }
         order.status = status;
         await order.save();

@@ -51,6 +51,24 @@ const ProtectedRoute = ({
   return <>{children}</>;
 };
 
+const GuestOnlyRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isAuthReady } = useAuth();
+
+  if (!isAuthReady) {
+    return (
+      <div className="grid min-h-80 place-items-center text-sm text-slate-500">
+        Loading...
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Component to conditionally render the homepage based on user role
 const HomePageRouter = () => {
   const { user } = useAuth();
@@ -84,21 +102,35 @@ function App() {
             <Route path="/" element={<HomePageRouter />} />
             <Route
               path="/login"
-              element={<AuthPage initialPanel="login" accountType="customer" />}
+              element={
+                <GuestOnlyRoute>
+                  <AuthPage initialPanel="login" accountType="customer" />
+                </GuestOnlyRoute>
+              }
             />
             <Route
               path="/signup"
               element={
-                <AuthPage initialPanel="signup" accountType="customer" />
+                <GuestOnlyRoute>
+                  <AuthPage initialPanel="signup" accountType="customer" />
+                </GuestOnlyRoute>
               }
             />
             <Route
               path="/vendor/login"
-              element={<AuthPage initialPanel="login" accountType="vendor" />}
+              element={
+                <GuestOnlyRoute>
+                  <AuthPage initialPanel="login" accountType="vendor" />
+                </GuestOnlyRoute>
+              }
             />
             <Route
               path="/vendor/register"
-              element={<AuthPage initialPanel="signup" accountType="vendor" />}
+              element={
+                <GuestOnlyRoute>
+                  <AuthPage initialPanel="signup" accountType="vendor" />
+                </GuestOnlyRoute>
+              }
             />
             {/* Protected routes for customers */}
             <Route
@@ -119,6 +151,10 @@ function App() {
             />
             {/* Public routes */}
             <Route path="/services" element={<ServicesPage />} />
+            <Route
+              path="/hotels"
+              element={<ServicesPage fixedCategory="Hotels" />}
+            />
             {/* Protected routes for vendors */}
             <Route
               path="/orders"

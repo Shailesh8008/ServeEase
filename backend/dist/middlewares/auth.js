@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.vendorAuth = exports.adminAuth = exports.authMiddleware = void 0;
+exports.customerAuth = exports.vendorAuth = exports.adminAuth = exports.authMiddleware = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authMiddleware = (req, res, next) => {
     const token = req.cookies?.token;
@@ -42,3 +42,12 @@ const vendorAuth = (req, res, next) => {
         .json({ ok: false, message: "Only Vendor can access this page" });
 };
 exports.vendorAuth = vendorAuth;
+const customerAuth = (req, res, next) => {
+    const { role } = req.user;
+    if (role === "CUSTOMER")
+        return next();
+    return res
+        .status(403)
+        .json({ ok: false, message: "Only Customer can access this page" });
+};
+exports.customerAuth = customerAuth;

@@ -10,18 +10,69 @@ export type PublicService = {
   poster: string;
 };
 
-export const getPublicServices = async () => {
-  const response = await fetch("/api/services", {
-    credentials: "include",
-  });
+export type BookingStatus =
+  | "Booked"
+  | "Confirmed"
+  | "Delivered"
+  | "Cancelled";
+
+export type CustomerBooking = {
+  id: string;
+  status: BookingStatus;
+  service: PublicService | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+const parseApiResponse = async <T>(
+  response: Response,
+  fallbackMessage: string,
+): Promise<T> => {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
     const payload = data as { error?: string; message?: string } | null;
-    throw new Error(payload?.error || payload?.message || "Failed to load services");
+    throw new Error(payload?.error || payload?.message || fallbackMessage);
   }
 
-  return (data as { services: PublicService[] }).services;
+  return data as T;
+};
+
+export const getPublicServices = async () => {
+  const response = await fetch("/api/services", {
+    credentials: "include",
+  });
+  const data = await parseApiResponse<{ services: PublicService[] }>(
+    response,
+    "Failed to load services",
+  );
+
+  return data.services;
+};
+
+export const bookService = async (serviceId: string) => {
+  const response = await fetch(`/api/services/${serviceId}/book`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const data = await parseApiResponse<{ booking: CustomerBooking }>(
+    response,
+    "Failed to book service",
+  );
+
+  return data.booking;
+};
+
+export const getCustomerBookings = async () => {
+  const response = await fetch("/api/bookings", {
+    credentials: "include",
+  });
+  const data = await parseApiResponse<{ bookings: CustomerBooking[] }>(
+    response,
+    "Failed to load bookings",
+  );
+
+  return data.bookings;
 };
 
 export const formatServicePrice = (value: number) =>

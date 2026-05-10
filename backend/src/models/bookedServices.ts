@@ -8,6 +8,6 @@ const bookedServiceSchema = new Schema({
     enum: ["Booked", "Confirmed", "Delivered", "Cancelled"],
     default: "Booked",
   },
-});
+}, { timestamps: true });
 
 export default model("bookedServices", bookedServiceSchema);

@@ -13,8 +13,8 @@ import { useEffect, useRef, useState } from "react";
 const customerNavLinks = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
+  { label: "Hotels", href: "/hotels" },
   { label: "Bookings", href: "/bookings" },
-  { label: "Contact", href: "/contact" },
 ];
 
 const vendorNavLinks = [

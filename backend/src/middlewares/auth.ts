@@ -45,3 +45,15 @@ export const vendorAuth = (req: Request, res: Response, next: NextFunction) => {
     .status(403)
     .json({ ok: false, message: "Only Vendor can access this page" });
 };
+
+export const customerAuth = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { role } = req.user!;
+  if (role === "CUSTOMER") return next();
+  return res
+    .status(403)
+    .json({ ok: false, message: "Only Customer can access this page" });
+};

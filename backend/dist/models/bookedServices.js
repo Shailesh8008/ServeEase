@@ -9,5 +9,5 @@ const bookedServiceSchema = new mongoose_1.Schema({
         enum: ["Booked", "Confirmed", "Delivered", "Cancelled"],
         default: "Booked",
     },
-});
+}, { timestamps: true });
 exports.default = (0, mongoose_1.model)("bookedServices", bookedServiceSchema);

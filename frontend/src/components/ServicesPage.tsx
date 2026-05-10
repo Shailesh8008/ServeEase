@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   serviceCategories,
@@ -8,6 +9,8 @@ import {
 import { cityFilterOptions } from "../lib/cities";
 import {
   formatServicePrice,
+  bookService,
+  getCustomerBookings,
   getPublicServices,
   getServiceDiscountPercent,
   type PublicService,
@@ -24,26 +27,69 @@ const getCategoryImage = (category: string) =>
   serviceCategories.find((item) => item.label === "Others")?.image ||
   "";
 
-function ServicesPage() {
+type ServicesPageProps = {
+  fixedCategory?: string;
+};
+
+function ServicesPage({ fixedCategory }: ServicesPageProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchParamsString = searchParams.toString();
   const isVendor = user?.role === "vendor";
+  const isHotelsPage = fixedCategory === "Hotels";
   const [services, setServices] = useState<PublicService[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [category, setCategory] = useState("All");
-  const [city, setCity] = useState("All");
+  const [city, setCity] = useState(() => {
+    const queryCity = searchParams.get("city");
+    return queryCity && cityFilterOptions.includes(queryCity)
+      ? queryCity
+      : "All";
+  });
   const [sort, setSort] = useState("relevance");
   const [activeDropdown, setActiveDropdown] = useState<
     "category" | "city" | "sort" | null
   >(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [bookingServiceId, setBookingServiceId] = useState<string | null>(null);
+  const [bookedServiceIds, setBookedServiceIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const filtersRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const querySearch = searchParams.get("search") ?? "";
+    const queryCity = searchParams.get("city");
+
+    setSearch(querySearch);
+    setCity(
+      queryCity && cityFilterOptions.includes(queryCity) ? queryCity : "All",
+    );
+  }, [searchParamsString]);
 
   useEffect(() => {
     const loadServices = async () => {
       try {
         setError("");
-        setServices(await getPublicServices());
+        const [loadedServices, loadedBookings] = await Promise.all([
+          getPublicServices(),
+          user?.role === "customer" ? getCustomerBookings() : [],
+        ]);
+        setServices(loadedServices);
+        setBookedServiceIds(
+          new Set(
+            loadedBookings
+              .filter(
+                (booking) =>
+                  booking.status === "Booked" || booking.status === "Confirmed",
+              )
+              .map((booking) => booking.service?.id)
+              .filter((serviceId): serviceId is string => Boolean(serviceId)),
+          ),
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Unable to load services",
@@ -54,7 +100,7 @@ function ServicesPage() {
     };
 
     loadServices();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -77,10 +123,37 @@ function ServicesPage() {
     setActiveDropdown(null);
   };
 
+  const handleBookService = async (serviceId: string) => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccessMessage("");
+      setBookingServiceId(serviceId);
+      const booking = await bookService(serviceId);
+      setBookedServiceIds((current) => new Set(current).add(serviceId));
+      setSuccessMessage(
+        `${booking.service?.sname ?? "Service"} booked successfully.`,
+      );
+      navigate("/bookings");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to book service");
+    } finally {
+      setBookingServiceId(null);
+    }
+  };
+
   const filteredServices = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return services
+      .filter((service) => {
+        if (fixedCategory) return service.category === fixedCategory;
+        return service.category !== "Hotels";
+      })
       .filter((service) => {
         const matchesSearch =
           normalizedSearch === "" ||
@@ -96,7 +169,7 @@ function ServicesPage() {
         if (sort === "price-desc") return b.sellingPrice - a.sellingPrice;
         return 0;
       });
-  }, [services, search, category, city, sort]);
+  }, [services, search, category, city, sort, fixedCategory]);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6 lg:px-8">
@@ -105,64 +178,75 @@ function ServicesPage() {
           <div className="flex flex-col gap-8">
             <div>
               <p className="text-sm font-semibold uppercase text-teal-700">
-                Services catalog
+                {isHotelsPage ? "Hotel stays" : "Services catalog"}
               </p>
               <h1 className="mt-3 text-4xl font-bold text-slate-950 sm:text-5xl">
-                Find the right service for your home or stay.
+                {isHotelsPage
+                  ? "Find the right hotel for your next stay."
+                  : "Find the right service for your home."}
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                Browse live listings published by vendors.
+                Enjoy a hassle-free experience.
               </p>
             </div>
 
             <div className="grid gap-6">
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-slate-700">
-                  Search services
+                  {isHotelsPage ? "Search hotels" : "Search services"}
                 </span>
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search cleaning, plumbing, hotels..."
+                  placeholder={
+                    isHotelsPage
+                      ? "Search hotel names, stays, amenities..."
+                      : "Search cleaning, plumbing, repairs..."
+                  }
                   className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 />
               </label>
 
-              <div ref={filtersRef} className="grid gap-4 sm:grid-cols-3">
-                <div className="relative">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">
-                    Category
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setActiveDropdown((prev) =>
-                        prev === "category" ? null : "category",
-                      )
-                    }
-                    className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition hover:border-teal-500 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
-                  >
-                    <span>{category}</span>
-                    <span className="text-slate-400">v</span>
-                  </button>
-                  {activeDropdown === "category" && (
-                    <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl">
-                      {serviceCategoryFilterOptions.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => handleSelect("category", option)}
-                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                        >
-                          <span>{option}</span>
-                          {category === option ? (
-                            <span className="text-teal-600">Selected</span>
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <div
+                ref={filtersRef}
+                className={`grid gap-4 ${isHotelsPage ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}
+              >
+                {!isHotelsPage && (
+                  <div className="relative">
+                    <span className="mb-2 block text-sm font-medium text-slate-700">
+                      Category
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setActiveDropdown((prev) =>
+                          prev === "category" ? null : "category",
+                        )
+                      }
+                      className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition hover:border-teal-500 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                    >
+                      <span>{category}</span>
+                      <span className="text-slate-400">v</span>
+                    </button>
+                    {activeDropdown === "category" && (
+                      <div className="absolute left-0 right-0 z-20 mt-2 max-h-72 overflow-auto rounded-md border border-slate-200 bg-white shadow-xl">
+                        {serviceCategoryFilterOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => handleSelect("category", option)}
+                            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <span>{option}</span>
+                            {category === option ? (
+                              <span className="text-teal-600">Selected</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="relative">
                   <span className="mb-2 block text-sm font-medium text-slate-700">
@@ -260,6 +344,12 @@ function ServicesPage() {
         </div>
       )}
 
+      {successMessage && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {successMessage}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid min-h-56 place-items-center rounded-md border border-slate-200 bg-white">
           <Loader2 className="h-7 w-7 animate-spin text-teal-600" />
@@ -319,8 +409,21 @@ function ServicesPage() {
                         </span>
                       )}
                     </div>
-                    {!isVendor && (
-                      <button className="rounded-md bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">
+                    {!isVendor && bookedServiceIds.has(service.id) && (
+                      <span className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-100 px-5 text-sm font-semibold text-slate-600">
+                        Booked
+                      </span>
+                    )}
+                    {!isVendor && !bookedServiceIds.has(service.id) && (
+                      <button
+                        type="button"
+                        onClick={() => handleBookService(service.id)}
+                        disabled={bookingServiceId === service.id}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-teal-600 px-5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {bookingServiceId === service.id && (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        )}
                         Book now
                       </button>
                     )}

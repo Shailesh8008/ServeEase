@@ -154,7 +154,10 @@ export const vendorApi = {
 
   async updateOrderStatus(
     orderId: string,
-    status: Extract<VendorOrderStatus, "Confirmed" | "Cancelled">,
+    status: Extract<
+      VendorOrderStatus,
+      "Confirmed" | "Delivered" | "Cancelled"
+    >,
   ) {
     const response = await fetch(`/api/vendor/orders/${orderId}/status`, {
       method: "PATCH",

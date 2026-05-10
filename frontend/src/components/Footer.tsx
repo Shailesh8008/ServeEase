@@ -22,13 +22,13 @@ function Footer() {
             Company
           </h2>
           <div className="grid gap-2 text-sm text-slate-300">
-            <Link to="/about" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               About
             </Link>
-            <Link to="/services" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               Services
             </Link>
-            <Link to="/contact" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               Contact
             </Link>
           </div>
@@ -39,13 +39,13 @@ function Footer() {
             Support
           </h2>
           <div className="grid gap-2 text-sm text-slate-300">
-            <Link to="/help" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               Help Center
             </Link>
-            <Link to="/privacy" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               Privacy
             </Link>
-            <Link to="/terms" className="transition hover:text-white">
+            <Link to="#" className="transition hover:text-white">
               Terms
             </Link>
           </div>
@@ -53,7 +53,7 @@ function Footer() {
       </div>
 
       <div className="border-t border-slate-800 px-4 py-5 text-center text-sm text-slate-400">
-        Copyright 2026 ServiceEase. All rights reserved.
+        © Copyright 2026 ServiceEase. All rights reserved.
       </div>
     </footer>
   );
