@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiUrl";
+
 export type PublicService = {
   id: string;
   vendorId: string;
@@ -39,7 +41,7 @@ const parseApiResponse = async <T>(
 };
 
 export const getPublicServices = async () => {
-  const response = await fetch("/api/services", {
+  const response = await fetch(apiUrl("/api/services"), {
     credentials: "include",
   });
   const data = await parseApiResponse<{ services: PublicService[] }>(
@@ -51,7 +53,7 @@ export const getPublicServices = async () => {
 };
 
 export const bookService = async (serviceId: string) => {
-  const response = await fetch(`/api/services/${serviceId}/book`, {
+  const response = await fetch(apiUrl(`/api/services/${serviceId}/book`), {
     method: "POST",
     credentials: "include",
   });
@@ -64,7 +66,7 @@ export const bookService = async (serviceId: string) => {
 };
 
 export const getCustomerBookings = async () => {
-  const response = await fetch("/api/bookings", {
+  const response = await fetch(apiUrl("/api/bookings"), {
     credentials: "include",
   });
   const data = await parseApiResponse<{ bookings: CustomerBooking[] }>(

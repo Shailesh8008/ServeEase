@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiUrl";
+
 export type VendorService = {
   id: string;
   sname: string;
@@ -83,7 +85,7 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 
 export const vendorApi = {
   async getDashboard() {
-    const response = await fetch("/api/vendor/dashboard", {
+    const response = await fetch(apiUrl("/api/vendor/dashboard"), {
       credentials: "include",
     });
     const data = await parseResponse<
@@ -97,7 +99,7 @@ export const vendorApi = {
   },
 
   async getServices() {
-    const response = await fetch("/api/vendor/services", {
+    const response = await fetch(apiUrl("/api/vendor/services"), {
       credentials: "include",
     });
     const data = await parseResponse<{
@@ -108,7 +110,7 @@ export const vendorApi = {
   },
 
   async createService(service: VendorServiceInput) {
-    const response = await fetch("/api/vendor/services", {
+    const response = await fetch(apiUrl("/api/vendor/services"), {
       method: "POST",
       credentials: "include",
       body: buildServiceFormData(service),
@@ -121,7 +123,7 @@ export const vendorApi = {
   },
 
   async updateService(serviceId: string, service: VendorServiceInput) {
-    const response = await fetch(`/api/vendor/services/${serviceId}`, {
+    const response = await fetch(apiUrl(`/api/vendor/services/${serviceId}`), {
       method: "PUT",
       credentials: "include",
       body: buildServiceFormData(service),
@@ -134,7 +136,7 @@ export const vendorApi = {
   },
 
   async deleteService(serviceId: string) {
-    const response = await fetch(`/api/vendor/services/${serviceId}`, {
+    const response = await fetch(apiUrl(`/api/vendor/services/${serviceId}`), {
       method: "DELETE",
       credentials: "include",
     });
@@ -142,7 +144,7 @@ export const vendorApi = {
   },
 
   async getOrders() {
-    const response = await fetch("/api/vendor/orders", {
+    const response = await fetch(apiUrl("/api/vendor/orders"), {
       credentials: "include",
     });
     const data = await parseResponse<{
@@ -159,7 +161,7 @@ export const vendorApi = {
       "Confirmed" | "Delivered" | "Cancelled"
     >,
   ) {
-    const response = await fetch(`/api/vendor/orders/${orderId}/status`, {
+    const response = await fetch(apiUrl(`/api/vendor/orders/${orderId}/status`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

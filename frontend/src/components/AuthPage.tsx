@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiUrl } from "../lib/apiUrl";
 
 type AuthPanel = "login" | "signup";
 type AccountType = "customer" | "vendor";
@@ -48,7 +49,7 @@ function AuthPage({
   const brandLabel = isVendor ? "ServiceEase Vendors" : "ServiceEase";
 
   const getBackendAuthUrl = () => {
-    return `/api/auth/${isVendor ? "vendor" : "customer"}`;
+    return apiUrl(`/api/auth/${isVendor ? "vendor" : "customer"}`);
   };
 
   const postBackendAuth = async (body: unknown) => {
