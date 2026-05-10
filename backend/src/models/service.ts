@@ -7,6 +7,7 @@ const serviceSchema = new Schema({
   marginPrice: { type: Number, require: true },
   sellingPrice: { type: Number, require: true },
   category: { type: String, require: true },
+  city: { type: String, require: true },
   description: { type: String },
   poster: { type: String },
 });

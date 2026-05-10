@@ -5,7 +5,7 @@ const bookedServiceSchema = new Schema({
   serviceId: { type: Schema.Types.ObjectId, ref: "services" },
   status: {
     type: String,
-    enum: ["Booked", "Confirmed", "Delivered"],
+    enum: ["Booked", "Confirmed", "Delivered", "Cancelled"],
     default: "Booked",
   },
 });

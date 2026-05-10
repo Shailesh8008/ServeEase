@@ -73,6 +73,8 @@ const createToken = (payload: {
   id: string;
   email: string;
   role: RoleType;
+  fullName?: string;
+  name?: string;
 }) => {
   return jwt.sign(payload, JWT_SECRET_KEY, { expiresIn: "7d" });
 };
@@ -267,17 +269,25 @@ const authRouterHandler = async (req: Request, res: Response) => {
       await clearOtpByEmail(email);
 
       const tokenRole = mapToJwtRole(user.role);
+      const userFullName = user.fullName ?? undefined;
       const token = createToken({
         id: user.id,
         email: user.email ?? email,
         role: tokenRole,
+        fullName: userFullName,
+        name: userFullName,
       });
       setAuthCookie(res, token);
 
       return res.status(200).json({
         success: true,
         message: "OTP verified",
-        user: { id: user.id, email: user.email ?? email, role: tokenRole },
+        user: {
+          id: user.id,
+          email: user.email ?? email,
+          role: user.role,
+          name: user.fullName,
+        },
       });
     }
 
