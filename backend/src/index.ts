@@ -15,6 +15,7 @@ connectDB();
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api", apiRouter);
 
 const createDefaultAdmin = async () => {
